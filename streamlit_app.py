@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import re
 import html
+import ast
+import random
 
 st.set_page_config(
     page_title="Bibliothèque · Book Recommender",
@@ -12,394 +14,830 @@ st.set_page_config(
 # ─── GLOBAL STYLES ────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');
 
-/* Base */
+:root {
+    --bg-main: #F7F2EC;
+    --bg-soft: #FFF9F3;
+    --bg-panel: #F1E8DF;
+    --border-soft: #E3D8CE;
+
+    --text-main: #6D5A4B;
+    --text-soft: #8D7C71;
+    --text-faint: #AB9A8F;
+
+    --olive: #818546;
+    --pink: #F5B1B8;
+    --terracotta: #E68A58;
+    --peach: #FFE4D2;
+    --blue-soft: #9BC0CC;
+    --blue-mid: #7BA9B8;
+    --mustard: #C3A05B;
+    --sage: #99B7A4;
+
+    --white-cream: #FFF8F2;
+}
+
 html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Outfit', sans-serif;
 }
 
 .stApp {
-    background: #f5efe7;
-    color: #2a211b;
+    background: var(--bg-main);
+    color: var(--text-main);
 }
 
-/* Hide default Streamlit chrome */
-#MainMenu, footer, header {
-    visibility: hidden;
-}
+#MainMenu, footer, header { visibility: hidden; }
 
-/* Same page margins everywhere */
 .block-container {
+    max-width: 1500px !important;
+    margin: 0 auto !important;
     padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: 2.2rem !important;
-    padding-right: 2.2rem !important;
-    max-width: 100% !important;
+    padding-bottom: 2rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
 }
 
-/* Force columns to start from the top */
-div[data-testid="column"] {
-    align-self: flex-start !important;
+div[data-testid="column"] { align-self: flex-start !important; }
+
+/* ══════════════════════════════════════════
+   HERO
+══════════════════════════════════════════ */
+.hero-outer {
+    position: relative;
+    background: var(--bg-soft);
+    border-radius: 24px 24px 0 0;
+    margin: 1.4rem 0 0 0;
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+    border-bottom: none;
+    display: flex;
+    flex-direction: column;
 }
 
-            /* ── HERO HEADER ── */
-.hero {
-    background: #2f7163;
-    border-bottom: 1px solid #dfd0c1;
-    padding: 3rem 4rem 4.5rem;
+.hero-outer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.45;
+}
+
+.hero-shelf-row {
+    display: flex;
+    align-items: stretch;
+    position: relative;
+    z-index: 1;
+    min-height: 460px;
+}
+
+/* ── Left/Right bookshelf ── */
+.hero-shelf-left,
+.hero-shelf-right {
+    width: 220px;
+    flex-shrink: 0;
+    padding: 2.5rem 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.hero-shelf-right {
+    align-items: flex-end;
+}
+
+.shelf-row-books {
     display: flex;
     align-items: flex-end;
-    gap: 2rem;
-    position: relative;
-    overflow: hidden;
-    border-radius: 18px 18px 0 0;
-    margin: 1.3rem 0 0 0;
+    padding: 0 12px;
+    gap: 3px;
+    margin-bottom: 0;
 }
 
-.hero::before {
-    content: "BIBLIOTHÈQUE";
-    position: absolute;
-    top: -18px;
-    right: -18px;
-    font-family: 'Playfair Display', serif;
-    font-size: 11rem;
-    font-weight: 700;
-    color: rgba(24, 82, 73, 0.65);
-    letter-spacing: -4px;
-    pointer-events: none;
-    line-height: 1;
+.shelf-row-books.right-side {
+    justify-content: flex-end;
+    padding: 0 12px;
 }
+
+.shelf-plank {
+    height: 14px;
+    background: linear-gradient(180deg, #D9B579 0%, #C79A60 50%, #A97847 100%);
+    box-shadow: 0 8px 18px rgba(140, 110, 80, 0.18), inset 0 2px 0 rgba(255,255,255,0.30);
+    border-radius: 3px;
+    margin: 0 8px 20px 8px;
+}
+
+.spine {
+    display: inline-block;
+    border-radius: 3px 4px 4px 3px;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 3px 4px 8px rgba(120, 100, 85, 0.20), inset -3px 0 6px rgba(0,0,0,0.10);
+    transition: transform 0.25s ease;
+}
+
+.spine::after {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 5px;
+    background: rgba(0,0,0,0.12);
+    border-radius: 3px 0 0 3px;
+}
+
+.spine:hover { transform: translateY(-8px); }
+
+/* ── Hero center ── */
+.hero-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+}
+
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--olive);
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    background: rgba(129, 133, 70, 0.10);
+    border: 1px solid rgba(129, 133, 70, 0.20);
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+}
+
+.hero-eyebrow span { opacity: 0.6; }
 
 .hero-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 4rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 5rem;
     font-weight: 700;
-    color: #fff8ef;
-    line-height: 1.05;
-    margin: 0;
-    letter-spacing: -1px;
-    position: relative;
-    z-index: 2;
+    color: var(--text-main);
+    line-height: 0.95;
+    letter-spacing: -2px;
+    margin: 0 0 0.6rem 0;
 }
 
 .hero-title em {
-    color: #f3b36e;
+    color: var(--terracotta);
     font-style: italic;
-    font-weight: 400;
+    font-weight: 600;
 }
 
 .hero-subtitle {
-    font-size: 0.85rem;
-    color: #c7ddd7;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin: 0.5rem 0 4rem;
-    position: relative;
-    z-index: 2;
+    font-size: 0.97rem;
+    color: var(--text-soft);
+    line-height: 1.8;
+    max-width: 440px;
+    margin: 1.2rem auto 0;
+    font-weight: 300;
 }
 
-/* ── SEARCH AREA ── */
-.search-shell {
-    background: #eee7de;
-    border-bottom: 1px solid #dfd0c1;
-    padding: 1.75rem 0 2rem 0;
-    margin: 0;
-}
-
-.search-title {
-    color: #9b8b7d;
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    font-weight: 700;
-    margin: 0 0 1rem 0;
-}
-
-/* Inputs */
-.stTextInput > div > div > input {
-    background: #ffffff !important;
-    border: 1px solid #d9d1c8 !important;
-    border-radius: 10px !important;
-    color: #2a211b !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 1rem !important;
-    padding: 0.85rem 1.1rem !important;
-    caret-color: #2f7163;
-}
-
-.stTextInput > div > div > input::placeholder {
-    color: #a9a4a0 !important;
-}
-
-.stTextInput > div > div > input:focus {
-    border-color: #2f7163 !important;
-    box-shadow: 0 0 0 2px rgba(47, 113, 99, 0.12) !important;
-}
-
-.stTextInput label {
-    color: #9b8b7d !important;
-    font-size: 0.72rem !important;
-    letter-spacing: 0.16em !important;
-    text-transform: uppercase !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 700 !important;
-}
-
-/* ── SECTION HEADERS ── */
-.section-header {
-    padding: 3rem 0 1.25rem 0;
-    border-bottom: 1px solid #dfd0c1;
-    background: transparent;
-    margin: 0 0 2rem 0;
-}
-
-.section-label {
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
-    color: #2a211b;
-    margin: 0 0 0.35rem 0;
-    font-weight: 700;
-}
-
-.section-meta {
-    font-size: 0.78rem;
-    color: #aa9888;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    margin: 0;
-    font-weight: 700;
-}
-
-/* ── BOOK CARD ── */
-.book-card {
-    background: #f3ede5;
-    border: 1px solid #dfd0c1;
-    border-radius: 14px;
-    padding: 0;
-    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-    cursor: default;
-    overflow: hidden;
-    box-shadow: 0 8px 20px rgba(90, 65, 45, 0.08);
-    margin-bottom: 0.7rem;
-}
-
-.book-card:hover {
-    border-color: #c7ad98;
-    transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(90, 65, 45, 0.14);
-}
-
-.book-cover-wrap {
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    overflow: hidden;
-    background: #e7efe9;
+/* ── Stats bar ── */
+.hero-stats {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 0;
+    margin-top: 2.2rem;
+    background: linear-gradient(135deg, var(--sage) 0%, var(--olive) 100%);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.20);
+}
+
+.stat-item {
+    padding: 1rem 2rem;
+    text-align: center;
+    flex: 1;
     position: relative;
 }
 
-.book-cover-wrap img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.stat-item + .stat-item::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 20%;
+    height: 60%; width: 1px;
+    background: rgba(255,255,255,0.22);
+}
+
+.stat-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--white-cream);
+    line-height: 1;
     display: block;
 }
 
-/* ── PLACEHOLDER BOOK COVER ── */
-.book-cover-placeholder {
-    width: 100%;
-    height: 100%;
+.stat-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(255,248,242,0.85);
+    font-weight: 600;
+    margin-top: 0.3rem;
+    display: block;
+}
+
+/* ── Tagline ribbon ── */
+.hero-ribbon {
+    background: var(--terracotta);
+    padding: 0.75rem 2rem;
+    text-align: center;
     position: relative;
-    background: linear-gradient(145deg, #6f8f83 0%, #456f63 100%);
+    z-index: 2;
+}
+
+.hero-ribbon p {
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.84);
+    font-weight: 600;
+}
+
+.hero-ribbon strong { color: #fff; }
+
+/* ══════════════════════════════════════════
+   SEARCH
+══════════════════════════════════════════ */
+.search-shell {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    border-top: none;
+    padding: 1.75rem 2rem 0.7rem 2rem;
+    margin: 0 0 0.4rem 0;
+    border-radius: 0 0 20px 20px;
+    position: relative;
+}
+
+.search-shell::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--bg-panel);
+}
+
+.search-title {
+    color: var(--text-soft);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Streamlit input full reset to remove red browser/Streamlit outline */
+.stTextInput {
+    margin-top: -0.1rem !important;
+}
+
+.stTextInput label {
+    color: var(--text-soft) !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.16em !important;
+    text-transform: uppercase !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 700 !important;
+    padding-bottom: 0.35rem !important;
+}
+
+/* outer input wrapper */
+.stTextInput div[data-baseweb="input"] {
+    background: #FFFDF9 !important;
+    border: 1.5px solid #D8CCC0 !important;
+    border-radius: 13px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.stTextInput div[data-baseweb="input"]:hover {
+    border-color: #D0BFB2 !important;
+}
+
+.stTextInput div[data-baseweb="input"]:focus-within {
+    border-color: var(--terracotta) !important;
+    box-shadow: 0 0 0 3px rgba(230, 138, 88, 0.14) !important;
+    outline: none !important;
+}
+
+/* real HTML input */
+.stTextInput input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--text-main) !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.97rem !important;
+    padding: 0.88rem 1.2rem !important;
+    caret-color: var(--terracotta) !important;
+}
+
+.stTextInput input:focus,
+.stTextInput input:focus-visible,
+.stTextInput input:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.stTextInput input::placeholder {
+    color: #B0A39A !important;
+}
+
+/* remove red autofill / validation outlines in WebKit */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px #FFFDF9 inset !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    caret-color: var(--terracotta) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* ══════════════════════════════════════════
+   RECOMMENDATION BANNER
+══════════════════════════════════════════ */
+.rec-banner {
+    margin: 2.5rem 0 0 0;
+    padding: 2rem 2.5rem;
+    background: linear-gradient(135deg, rgba(255,228,210,0.95) 0%, rgba(245,177,184,0.50) 100%);
+    border: 1px solid #E7D3C6;
+    border-radius: 20px;
     display: flex;
     align-items: center;
+    gap: 2rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.rec-banner::before {
+    content: "✦";
+    position: absolute;
+    right: 2rem; top: 50%;
+    transform: translateY(-50%);
+    font-size: 8rem;
+    color: rgba(129, 133, 70, 0.12);
+    line-height: 1;
+}
+
+.rec-banner-icon { font-size: 2.5rem; flex-shrink: 0; }
+
+.rec-banner-kicker {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--olive);
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+}
+
+.rec-banner-headline {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+}
+
+.rec-banner-body {
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    line-height: 1.7;
+    max-width: 600px;
+}
+
+.rec-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.8rem;
+}
+
+.rec-pill {
+    background: rgba(153, 183, 164, 0.24);
+    border: 1px solid rgba(129, 133, 70, 0.22);
+    color: var(--olive);
+    font-size: 0.62rem;
+    padding: 0.28rem 0.75rem;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════
+   SECTION HEADERS
+══════════════════════════════════════════ */
+.section-header {
+    padding: 3rem 0 1.5rem 0;
+    border-bottom: 1px solid #DDD1C5;
+    margin: 0 0 2.2rem 0;
+    display: flex;
+    align-items: baseline;
+    gap: 1.2rem;
+}
+
+.section-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem;
+    color: var(--text-main);
+    margin: 0;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.section-meta {
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0;
+    font-weight: 600;
+}
+
+/* ══════════════════════════════════════════
+   SHELF
+══════════════════════════════════════════ */
+.shelf-board {
+    height: 22px;
+    margin: -0.4rem 0 0.5rem 0;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #D9B579 0%, #C79A60 50%, #A97847 100%);
+    box-shadow:
+        0 16px 28px rgba(160, 125, 90, 0.18),
+        inset 0 3px 0 rgba(255,255,255,0.30),
+        inset 0 -4px 8px rgba(130, 95, 65, 0.18);
+    position: relative;
+}
+
+.shelf-board::before, .shelf-board::after {
+    content: "";
+    position: absolute;
+    bottom: -22px;
+    width: 20px; height: 22px;
+    background: linear-gradient(180deg, #B88456, #96683D);
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 6px 10px rgba(150, 110, 75, 0.18);
+}
+
+.shelf-board::before { left: 5%; }
+.shelf-board::after  { right: 5%; }
+
+/* ══════════════════════════════════════════
+   BOOK COVERS
+══════════════════════════════════════════ */
+.book-cover-wrap {
+    width: 82%;
+    margin: 0 auto;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 3px 10px 10px 3px;
+    box-shadow:
+        8px 14px 22px rgba(120, 95, 80, 0.18),
+        inset -6px 0 10px rgba(0,0,0,0.08),
+        inset 4px 0 6px rgba(255,255,255,0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+}
+
+.book-cover-wrap::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 8px;
+    background: rgba(0,0,0,0.16);
+    z-index: 2;
+    border-radius: 3px 0 0 3px;
+}
+
+.book-cover-wrap:hover {
+    transform: translateY(-9px) rotate(-0.8deg);
+    box-shadow:
+        12px 22px 32px rgba(120, 95, 80, 0.24),
+        inset -6px 0 10px rgba(0,0,0,0.08),
+        inset 4px 0 6px rgba(255,255,255,0.08);
+}
+
+.book-cover-wrap img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+}
+
+.book-cover-placeholder {
+    width: 100%; height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 1rem 0.75rem;
+    overflow: hidden;
 }
 
-/* Book spine */
-.book-cover-placeholder::before {
-    content: "";
+.bcp-0 { background: linear-gradient(160deg, #818546 0%, #9A9E5B 100%); }
+.bcp-1 { background: linear-gradient(160deg, #F5B1B8 0%, #E79BA4 100%); }
+.bcp-2 { background: linear-gradient(160deg, #E68A58 0%, #D9784B 100%); }
+.bcp-3 { background: linear-gradient(160deg, #9BC0CC 0%, #86AFBC 100%); }
+.bcp-4 { background: linear-gradient(160deg, #99B7A4 0%, #89A994 100%); }
+.bcp-5 { background: linear-gradient(160deg, #C3A05B 0%, #B28F4E 100%); }
+.bcp-6 { background: linear-gradient(160deg, #F0C6AE 0%, #E5B59A 100%); }
+.bcp-7 { background: linear-gradient(160deg, #A8C8D3 0%, #93B8C6 100%); }
+
+.bcp-bar {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 15%;
-    height: 100%;
-    background: linear-gradient(180deg, #2f7163 0%, #25594f 100%);
-    border-right: 1px solid rgba(255, 248, 239, 0.22);
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: rgba(255,255,255,0.22);
 }
 
-/* Inner cover frame */
-.book-cover-placeholder::after {
-    content: "";
+.bcp-frame {
     position: absolute;
-    inset: 16px 16px 16px 22%;
-    border: 1px solid rgba(255, 248, 239, 0.35);
-    border-radius: 10px;
+    inset: 16px 12px 16px 12px;
+    border: 1px solid rgba(255,255,255,0.23);
+    border-radius: 4px;
     pointer-events: none;
 }
 
-.cover-content {
+.bcp-ornament {
+    position: absolute;
+    width: 18px; height: 18px;
+    opacity: 0.45;
+}
+.bcp-ornament.tl { top: 20px; left: 14px; border-top: 2px solid rgba(255,255,255,0.78); border-left: 2px solid rgba(255,255,255,0.78); border-radius: 2px 0 0 0; }
+.bcp-ornament.tr { top: 20px; right: 14px; border-top: 2px solid rgba(255,255,255,0.78); border-right: 2px solid rgba(255,255,255,0.78); border-radius: 0 2px 0 0; }
+.bcp-ornament.bl { bottom: 20px; left: 14px; border-bottom: 2px solid rgba(255,255,255,0.78); border-left: 2px solid rgba(255,255,255,0.78); border-radius: 0 0 0 2px; }
+.bcp-ornament.br { bottom: 20px; right: 14px; border-bottom: 2px solid rgba(255,255,255,0.78); border-right: 2px solid rgba(255,255,255,0.78); border-radius: 0 0 2px 0; }
+
+.bcp-content {
     position: relative;
     z-index: 2;
-    width: 70%;
-    margin-left: 12%;
     text-align: center;
-    padding: 1rem 0.8rem;
+    padding: 0 0.5rem;
 }
 
-.book-cover-placeholder .cover-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.05rem;
-    color: #f3b36e;
-    text-align: center;
-    line-height: 1.3;
-    word-break: break-word;
+.bcp-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 0.9rem;
+    color: #FFF8F2;
+    line-height: 1.25;
     font-weight: 700;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.20);
 }
 
-.cover-subtle {
-    margin-top: 0.85rem;
+.bcp-divider {
+    width: 28px; height: 1px;
+    background: rgba(255,255,255,0.45);
+    margin: 0.6rem auto;
+}
+
+.bcp-author {
     font-size: 0.58rem;
-    color: rgba(255, 248, 239, 0.72);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    color: rgba(255,248,242,0.80);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
     font-weight: 500;
+    letter-spacing: 0.04em;
 }
 
 .rank-badge {
     position: absolute;
-    top: 9px;
-    left: 9px;
-    background: #f3b36e;
-    color: #2a211b;
-    font-size: 0.72rem;
+    top: 10px; right: 10px;
+    background: #FFF6EE;
+    color: var(--terracotta);
+    font-size: 0.62rem;
     font-weight: 700;
-    padding: 4px 9px;
-    border-radius: 7px;
+    padding: 3px 7px;
+    border-radius: 6px;
     letter-spacing: 0.03em;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Outfit', sans-serif;
     z-index: 3;
+    line-height: 1.4;
+    box-shadow: 0 4px 10px rgba(120,90,70,0.10);
 }
 
-.book-info {
-    min-height: 88px;
-    padding: 0.9rem 0.95rem;
-    background: #fffdf9;
-    border-top: 1px solid #dfd0c1;
+/* ══════════════════════════════════════════
+   BOOK META
+══════════════════════════════════════════ */
+.book-meta {
+    text-align: center;
+    padding: 1rem 0.3rem 1.5rem 0.3rem;
+    min-height: 95px;
 }
 
 .book-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 0.95rem;
-    color: #2a211b;
-    line-height: 1.32;
-    margin-bottom: 0.4rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.02rem;
+    color: var(--text-main);
+    line-height: 1.2;
+    margin-bottom: 0.3rem;
     font-weight: 700;
-    overflow: visible;
-    display: block;
-    white-space: normal;
-    word-break: normal;
     overflow-wrap: anywhere;
 }
 
 .book-author {
-    font-size: 0.74rem;
-    color: #8b7b6d;
-    letter-spacing: 0.03em;
+    font-size: 0.75rem;
+    color: var(--text-soft);
     line-height: 1.35;
-    overflow: visible;
-    display: block;
-    white-space: normal;
-    word-break: normal;
     overflow-wrap: anywhere;
+    font-weight: 400;
 }
 
-/* Overview button */
+/* ══════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════ */
 .stButton > button {
     width: 100%;
-    background: #fffdf9 !important;
-    color: #2f7163 !important;
-    border: 1px solid #dfd0c1 !important;
-    border-radius: 8px !important;
-    padding: 0.55rem 0.75rem !important;
-    font-size: 0.72rem !important;
+    background: rgba(255, 251, 246, 0.95) !important;
+    color: var(--terracotta) !important;
+    border: 1.5px solid #DDCEC2 !important;
+    border-radius: 999px !important;
+    padding: 0.46rem 0.7rem !important;
+    font-size: 0.65rem !important;
     font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.1em !important;
     text-transform: uppercase !important;
-    font-family: 'DM Sans', sans-serif !important;
-    margin-bottom: 1.4rem !important;
+    font-family: 'Outfit', sans-serif !important;
+    box-shadow: 0 4px 12px rgba(120, 95, 80, 0.06);
+    transition: all 0.18s ease !important;
 }
 
 .stButton > button:hover {
-    background: #eee7de !important;
-    border-color: #c7ad98 !important;
-    color: #25594f !important;
+    background: #FFF0E7 !important;
+    border-color: #E0B79F !important;
+    color: #D9784B !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(120, 95, 80, 0.10) !important;
 }
 
-/* Dialog / popup */
+/* ══════════════════════════════════════════
+   DIALOG
+══════════════════════════════════════════ */
 div[data-testid="stDialog"] div[role="dialog"] {
-    background: #fffdf9 !important;
-    border: 1px solid #dfd0c1 !important;
-    border-radius: 18px !important;
-    box-shadow: 0 24px 60px rgba(42, 33, 27, 0.25) !important;
+    background: var(--bg-soft) !important;
+    border: 1px solid var(--border-soft) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 24px 60px rgba(120, 95, 80, 0.18) !important;
+    width: min(1080px, 92vw) !important;
+    max-width: min(1080px, 92vw) !important;
+    padding: 1rem 1.1rem 1.4rem 1.1rem !important;
 }
 
-div[data-testid="stDialog"] h2 {
-    font-family: 'Playfair Display', serif !important;
-    color: #2a211b !important;
+.dialog-cover {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 4px 12px 12px 4px;
+    overflow: hidden;
+    box-shadow: 10px 16px 32px rgba(120, 95, 80, 0.18);
+    position: relative;
+}
+
+.dialog-cover::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 10px;
+    background: rgba(0,0,0,0.14);
+    z-index: 2;
+}
+
+.dialog-cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.dialog-cover-placeholder {
+    width: 100%; height: 100%;
+    background: linear-gradient(160deg, var(--sage) 0%, var(--blue-soft) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    color: #FFF8F2;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    line-height: 1.3;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.dialog-cover-placeholder span {
+    display: block;
+    margin-top: 0.8rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    color: rgba(255, 248, 242, 0.72);
+    line-height: 1.4;
+    font-weight: 400;
+}
+
+.dialog-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.1rem;
+    line-height: 1.1;
+    color: var(--text-main);
+    margin-bottom: 0.3rem;
+    font-weight: 700;
 }
 
 .dialog-author {
-    color: #8b7b6d;
-    font-size: 0.85rem;
-    margin-top: -0.4rem;
-    margin-bottom: 1.3rem;
-    letter-spacing: 0.03em;
+    color: var(--text-soft);
+    font-size: 0.93rem;
+    margin-bottom: 1.4rem;
+    font-weight: 400;
 }
 
-.dialog-description {
-    color: #2a211b;
-    font-size: 1rem;
-    line-height: 1.75;
-    max-height: 55vh;
+.detail-block {
+    padding: 0.85rem 0 1rem 0;
+    border-top: 1px solid #E9DED4;
+}
+
+.detail-label {
+    color: var(--text-faint);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.detail-value {
+    color: var(--text-main);
+    font-size: 0.93rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.detail-description {
+    color: var(--text-main);
+    font-size: 0.97rem;
+    line-height: 1.85;
+    max-height: 44vh;
     overflow-y: auto;
-    padding-right: 0.5rem;
+    padding-right: 0.4rem;
+    overflow-wrap: anywhere;
+    font-weight: 300;
 }
 
-/* Info banner */
+/* ══════════════════════════════════════════
+   INFO BANNER
+══════════════════════════════════════════ */
 .info-banner {
-    margin: 1.5rem 0;
-    padding: 1rem 1.5rem;
-    background: #eee7de;
-    border-left: 4px solid #2f7163;
-    border-radius: 8px;
-    color: #6f6258;
-    font-size: 0.85rem;
-    letter-spacing: 0.02em;
+    margin: 2rem 0;
+    padding: 1.2rem 1.8rem;
+    background: #FBF1E8;
+    border-left: 4px solid var(--terracotta);
+    border-radius: 12px;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    line-height: 1.6;
 }
 
-/* Divider before footer */
-.bottom-divider {
-    border-top: 1px solid #dfd0c1;
-    margin-top: 1.2rem;
-}
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.bottom-divider { border-top: 1px solid #DDD1C5; margin-top: 1.5rem; }
 
-/* Footer */
 .footer-custom {
     padding: 2rem 0 1.5rem 0;
-    background: #f5efe7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .footer-custom p {
-    font-size: 0.7rem;
-    color: #aa9888;
+    font-size: 0.68rem;
+    color: var(--text-faint);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     margin: 0;
+    font-weight: 600;
+}
+
+.footer-mark { font-size: 1.2rem; color: var(--olive); }
+
+@media (max-width: 900px) {
+    .hero-shelf-left, .hero-shelf-right { display: none; }
+    .hero-title { font-size: 3.5rem; }
+    .hero-stats { flex-direction: column; }
+    .stat-item + .stat-item::before { display: none; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -414,232 +852,361 @@ def load_data():
 
 recommendations, items, interactions = load_data()
 
+num_books = len(items)
+num_users = interactions["u"].nunique() if "u" in interactions.columns else 0
+
+
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
-def clean_title(title):
-    if pd.isna(title):
-        return "Unknown Title"
-
-    title = str(title).strip()
-
-    if title.endswith("/"):
-        title = title[:-1].strip()
-
-    return title
-
-
-def clean_author(author):
-    if pd.isna(author):
-        return None
-
-    author = str(author).strip()
-
-    author = author.replace("[", "").replace("]", "")
-    author = author.replace("'", "").replace('"', "")
-    author = " ".join(author.split())
-
-    # Remove isolated hyphens often found between first and last names
-    author = re.sub(r"\s*-\s*", " ", author)
-
-    # Clean spaces again after removing hyphens
-    author = " ".join(author.split())
-
-    # Remove dates like 1916- or 1916-2010
-    author = re.sub(r",?\s*\b\d{4}-?\d{0,4}\b", "", author)
-
-    # Clean spaces again after removing dates
-    author = " ".join(author.split())
-
-    if ";" in author:
-        authors = [a.strip() for a in author.split(";") if a.strip()]
-        cleaned = []
-
-        for a in authors:
-            parts = [p.strip() for p in a.split(",") if p.strip()]
-
-            if len(parts) == 2:
-                last, first = parts
-                cleaned.append(f"{first} {last}")
-            else:
-                cleaned.append(a)
-
-        return ", ".join(cleaned)
-
-    parts = [p.strip() for p in author.split(",") if p.strip()]
-
-    if len(parts) > 2 and len(parts) % 2 == 0:
-        cleaned = []
-
-        for i in range(0, len(parts), 2):
-            last = parts[i]
-            first = parts[i + 1]
-            cleaned.append(f"{first} {last}")
-
-        return ", ".join(cleaned)
-
-    if len(parts) == 2:
-        first_part, second_part = parts
-
-        if len(first_part.split()) >= 2 and len(second_part.split()) >= 2:
-            return f"{first_part}, {second_part}"
-
-        return f"{second_part} {first_part}"
-
-    return author
-
+def html_block(raw):
+    return "\n".join(line.strip() for line in raw.strip().splitlines() if line.strip())
 
 def safe_text(value):
-    if pd.isna(value):
+    if value is None or pd.isna(value):
         return None
-
     value = str(value).strip()
-
-    if value == "" or value.lower() == "nan":
+    if value == "" or value.lower() in ["nan", "none"]:
         return None
-
     return value
 
+def clean_title(title):
+    title = safe_text(title)
+    if not title:
+        return "Unknown Title"
+    if title.endswith("/"):
+        title = title[:-1].strip()
+    return re.sub(r"\s+", " ", title)
+
+def parse_possible_list(value):
+    value = safe_text(value)
+    if not value:
+        return []
+    if value.startswith("[") and value.endswith("]"):
+        try:
+            parsed = ast.literal_eval(value)
+            if isinstance(parsed, list):
+                return [str(x).strip() for x in parsed if safe_text(x)]
+        except Exception:
+            pass
+    return [value]
+
+def clean_single_author(author):
+    author = safe_text(author)
+    if not author:
+        return None
+    author = html.unescape(author)
+    author = author.replace("[","").replace("]","").replace("'","").replace('"',"")
+    author = re.sub(r"\.{2,}", " ", author)
+    author = re.sub(r"\s*-\s*", " ", author)
+    author = re.sub(r",?\s*\b\d{4}-?\d{0,4}\b", "", author)
+    author = " ".join(author.split())
+    parts = [p.strip() for p in author.split(",") if p.strip()]
+    if len(parts) == 2:
+        return f"{parts[1]} {parts[0]}".strip()
+    return author
+
+def clean_author(author):
+    values = parse_possible_list(author)
+    if not values:
+        return None
+    cleaned_authors = []
+    for value in values:
+        value = safe_text(value)
+        if not value:
+            continue
+        chunks = [x.strip() for x in value.split(";")] if ";" in value else [value]
+        for chunk in chunks:
+            parts = [p.strip() for p in chunk.split(",") if p.strip()]
+            if len(parts) > 2 and len(parts) % 2 == 0:
+                for i in range(0, len(parts), 2):
+                    cleaned = clean_single_author(f"{parts[i]}, {parts[i+1]}")
+                    if cleaned:
+                        cleaned_authors.append(cleaned)
+            else:
+                cleaned = clean_single_author(chunk)
+                if cleaned:
+                    cleaned_authors.append(cleaned)
+    unique = []
+    for a in cleaned_authors:
+        if a not in unique:
+            unique.append(a)
+    return ", ".join(unique) if unique else None
 
 def safe_thumbnail(value):
-    if pd.isna(value):
+    value = safe_text(value)
+    if not value:
         return None
-
-    value = str(value).strip()
-
-    if value == "" or value.lower() == "nan":
-        return None
-
     return value.replace("http://", "https://")
 
+def first_available(book, columns):
+    for col in columns:
+        if col in book.index:
+            value = safe_text(book.get(col))
+            if value:
+                return value
+    return None
+
+def prettify_field(value):
+    value = safe_text(value)
+    if not value:
+        return None
+    if value.startswith("[") and value.endswith("]"):
+        try:
+            parsed = ast.literal_eval(value)
+            if isinstance(parsed, list):
+                parsed = [str(x).strip() for x in parsed if safe_text(x)]
+                return ", ".join(parsed)
+        except Exception:
+            pass
+    value = html.unescape(value)
+    return re.sub(r"\s+", " ", value).strip().replace(" ;", ";")
+
+def get_book_fields(book):
+    return {
+        "title": clean_title(first_available(book, ["Title", "api_title"])),
+        "author": clean_author(first_available(book, ["Author", "api_authors"])),
+        "thumbnail": safe_thumbnail(first_available(book, ["api_thumbnail", "thumbnail"])),
+        "description": prettify_field(first_available(book, ["api_description", "description_x", "description_y", "description"])),
+        "categories": prettify_field(first_available(book, ["api_categories", "categories"])),
+        "subjects": prettify_field(first_available(book, ["Subjects", "subjects"])),
+        "published_date": prettify_field(first_available(book, ["api_published_date", "published_date", "PublishDate", "publishDate"])),
+        "publisher": prettify_field(first_available(book, ["api_publisher", "Publisher", "publisher"]))
+    }
 
 def render_section_header(title, meta):
-    st.markdown(f"""
+    st.markdown(html_block(f"""
     <div class="section-header">
         <h2 class="section-label">{html.escape(title)}</h2>
         <p class="section-meta">{html.escape(meta)}</p>
     </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
-
-@st.dialog("Book overview")
-def show_book_overview(title, author, description):
-    st.markdown(f"""
-    <h2 style="font-family:'Playfair Display', serif; margin-bottom:0.4rem;">
-        {html.escape(title)}
-    </h2>
-    """, unsafe_allow_html=True)
-
-    if author:
-        st.markdown(f"""
-        <p class="dialog-author">
-            {html.escape(author)}
-        </p>
-        """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="dialog-description">
-        {html.escape(description)}
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def render_book_card(book, rank=None):
-    raw_title = book.get("Title") if pd.notna(book.get("Title")) else book.get("api_title")
-    title = clean_title(raw_title)
-
-    raw_author = book.get("Author") if pd.notna(book.get("Author")) else book.get("api_authors")
-    author = clean_author(raw_author)
-
-    thumbnail = safe_thumbnail(book.get("api_thumbnail"))
-
-    description = (
-        book.get("api_description")
-        if pd.notna(book.get("api_description"))
-        else book.get("description_x")
-    )
-    description = safe_text(description)
-
-    rank_html = f'<div class="rank-badge">#{rank}</div>' if rank else ""
-    safe_title = html.escape(title)
+def make_cover_html(fields, rank=None, dialog=False, cover_index=0):
+    title = fields["title"]
+    author = fields["author"]
+    thumbnail = fields["thumbnail"]
+    rank_html = f'<div class="rank-badge">#{rank}</div>' if rank and not dialog else ""
+    palette_class = f"bcp-{cover_index % 8}"
 
     if thumbnail:
-        cover_html = (
-            f'<div class="book-cover-wrap">'
-            f'{rank_html}'
-            f'<img src="{html.escape(thumbnail)}" alt="{safe_title}" loading="lazy">'
-            f'</div>'
-        )
-    else:
-        cover_title = title
-        cover_html = (
-            f'<div class="book-cover-wrap">'
-            f'{rank_html}'
-            f'<div class="book-cover-placeholder">'
-            f'<div class="cover-content">'
-            f'<div class="cover-title">{html.escape(cover_title)}</div>'
-            f'<div class="cover-subtle">Cover unavailable</div>'
-            f'</div>'
-            f'</div>'
-            f'</div>'
-        )
+        if dialog:
+            return html_block(f"""
+            <div class="dialog-cover">
+                <img src="{html.escape(thumbnail)}" alt="{html.escape(title)}">
+            </div>
+            """)
+        return html_block(f"""
+        <div class="book-cover-wrap">
+            {rank_html}
+            <img src="{html.escape(thumbnail)}" alt="{html.escape(title)}" loading="lazy">
+        </div>
+        """)
 
-    if author:
-        author_html = f'<div class="book-author">{html.escape(author)}</div>'
-    else:
-        author_html = '<div class="book-author">Unknown author</div>'
+    if dialog:
+        author_html = f"<span>{html.escape(author)}</span>" if author else ""
+        return html_block(f"""
+        <div class="dialog-cover">
+            <div class="dialog-cover-placeholder">
+                <div>{html.escape(title)}{author_html}</div>
+            </div>
+        </div>
+        """)
 
-    card_html = (
-        f'<div class="book-card">'
-        f'{cover_html}'
-        f'<div class="book-info">'
-        f'<div class="book-title">{html.escape(title)}</div>'
-        f'{author_html}'
-        f'</div>'
-        f'</div>'
-    )
+    author_html = f'<div class="bcp-divider"></div><div class="bcp-author">{html.escape(author)}</div>' if author else ""
 
-    return card_html, description, title, author
+    return html_block(f"""
+    <div class="book-cover-wrap">
+        {rank_html}
+        <div class="book-cover-placeholder {palette_class}">
+            <div class="bcp-bar"></div>
+            <div class="bcp-frame"></div>
+            <div class="bcp-ornament tl"></div>
+            <div class="bcp-ornament tr"></div>
+            <div class="bcp-ornament bl"></div>
+            <div class="bcp-ornament br"></div>
+            <div class="bcp-content">
+                <div class="bcp-title">{html.escape(title)}</div>
+                {author_html}
+            </div>
+        </div>
+    </div>
+    """)
+
+def render_book_meta_html(fields):
+    author = fields["author"] if fields["author"] else "Unknown author"
+    return html_block(f"""
+    <div class="book-meta">
+        <div class="book-title">{html.escape(fields["title"])}</div>
+        <div class="book-author">{html.escape(author)}</div>
+    </div>
+    """)
+
+@st.dialog("Book details")
+def show_book_details(fields, cover_index=0):
+    left, right = st.columns([1, 1.5], gap="large")
+    with left:
+        st.markdown(make_cover_html(fields, dialog=True, cover_index=cover_index), unsafe_allow_html=True)
+    with right:
+        st.markdown(f'<div class="dialog-title">{html.escape(fields["title"])}</div>', unsafe_allow_html=True)
+        if fields["author"]:
+            st.markdown(f'<div class="dialog-author">{html.escape(fields["author"])}</div>', unsafe_allow_html=True)
+
+        meta_items = [(l, v) for l, v in [
+            ("Publication date", fields["published_date"]),
+            ("Publisher", fields["publisher"]),
+            ("Categories", fields["categories"]),
+            ("Subjects", fields["subjects"]),
+        ] if v]
+
+        for i in range(0, len(meta_items), 2):
+            cols = st.columns(2, gap="large")
+            for j, (label, value) in enumerate(meta_items[i:i+2]):
+                with cols[j]:
+                    st.markdown(html_block(f"""
+                    <div class="detail-block">
+                        <div class="detail-label">{html.escape(label)}</div>
+                        <div class="detail-value">{html.escape(value)}</div>
+                    </div>
+                    """), unsafe_allow_html=True)
+
+        if fields["description"]:
+            st.markdown(html_block(f"""
+            <div class="detail-block" style="margin-top:0.2rem;">
+                <div class="detail-label">Description</div>
+                <div class="detail-description">{html.escape(fields["description"])}</div>
+            </div>
+            """), unsafe_allow_html=True)
+
+def render_book_grid(books_df, ranked=True, cols_per_row=5, section_key="section", start_index=0):
+    books_list = list(books_df.iterrows())
+    for row_start in range(0, len(books_list), cols_per_row):
+        row_books = books_list[row_start:row_start + cols_per_row]
+        row_data = []
+        for col_index, (_, book) in enumerate(row_books):
+            rank = row_start + col_index + 1 if ranked else None
+            fields = get_book_fields(book)
+            book_id = book.get("i") if "i" in book.index else f"{row_start}_{col_index}"
+            cover_index = start_index + row_start + col_index
+            row_data.append((book, fields, rank, book_id, col_index, cover_index))
+
+        button_cols = st.columns(cols_per_row, gap="large")
+        for idx, (_, fields, rank, book_id, col_index, cover_index) in enumerate(row_data):
+            with button_cols[idx]:
+                if st.button("More info", key=f"btn_{section_key}_{book_id}_{row_start}_{col_index}", use_container_width=True):
+                    show_book_details(fields, cover_index=cover_index)
+
+        cover_cols = st.columns(cols_per_row, gap="large")
+        for idx, (_, fields, rank, book_id, col_index, cover_index) in enumerate(row_data):
+            with cover_cols[idx]:
+                st.markdown(make_cover_html(fields, rank=rank, cover_index=cover_index), unsafe_allow_html=True)
+
+        st.markdown('<div class="shelf-board"></div>', unsafe_allow_html=True)
+
+        meta_cols = st.columns(cols_per_row, gap="large")
+        for idx, (_, fields, rank, book_id, col_index, cover_index) in enumerate(row_data):
+            with meta_cols[idx]:
+                st.markdown(render_book_meta_html(fields), unsafe_allow_html=True)
 
 
-def render_book_grid(books_df, show_description=False, ranked=True, cols_per_row=5):
-    cols = st.columns(cols_per_row, gap="medium")
+# ─── BOOK SPINE GENERATOR ─────────────────────────────────────────────────────
+SPINE_COLORS = [
+    "#818546",
+    "#F5B1B8",
+    "#E68A58",
+    "#9BC0CC",
+    "#99B7A4",
+    "#C3A05B",
+    "#F0CDBA",
+    "#A6C4CF",
+    "#E6A08A",
+    "#B6C67E",
+    "#EBC0C5",
+    "#8DB6C2",
+    "#A4C0AD",
+    "#D3B06E",
+    "#F2D8C8",
+    "#C8D9DE",
+    "#E4B58B",
+    "#C9D6A0",
+    "#E7B6BE",
+    "#99B7A4",
+]
 
-    for idx, (_, book) in enumerate(books_df.iterrows()):
-        with cols[idx % cols_per_row]:
-            rank = idx + 1 if ranked else None
-            card_html, description, title, author = render_book_card(book, rank=rank)
-            st.markdown(card_html, unsafe_allow_html=True)
+def make_spine(color, width, height):
+    return f'<div class="spine" style="width:{width}px;height:{height}px;background:{color};"></div>'
 
-            if show_description and description:
-                button_key = f"overview_{rank}_{idx}_{str(title)[:30]}"
-                if st.button("Overview", key=button_key):
-                    show_book_overview(title, author, description)
+def make_shelf_row(count, side="left"):
+    spines_html = ""
+    for _ in range(count):
+        color = random.choice(SPINE_COLORS)
+        width = random.randint(14, 26)
+        height = random.randint(90, 160)
+        spines_html += make_spine(color, width, height)
+    side_class = "right-side" if side == "right" else ""
+    return f'<div class="shelf-row-books {side_class}">{spines_html}</div><div class="shelf-plank"></div>'
 
-        if (idx + 1) % cols_per_row == 0 and idx + 1 < len(books_df):
-            cols = st.columns(cols_per_row, gap="medium")
+random.seed(42)
 
+left_shelves = "".join(make_shelf_row(9, "left") for _ in range(3))
+right_shelves = "".join(make_shelf_row(9, "right") for _ in range(3))
+
+def fmt_number(n):
+    if n >= 1000:
+        return f"{n/1000:.1f}k".replace(".0k","k")
+    return str(n)
 
 # ─── HERO ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-    <div class="hero-content">
-        <p class="hero-subtitle">University Library · Personalized Discovery</p>
-        <h1 class="hero-title">Your next<br><em>great read</em><br>awaits.</h1>
+hero_html = f"""
+<div class="hero-outer">
+    <div class="hero-shelf-row">
+        <div class="hero-shelf-left">{left_shelves}</div>
+        <div class="hero-center">
+            <div class="hero-eyebrow">
+                <span>✦</span> University Library <span>·</span> Book Recommender
+            </div>
+            <h1 class="hero-title">
+                Your next<br><em>great read</em><br>awaits.
+            </h1>
+            <p class="hero-subtitle">
+                Your taste left a trail. We followed it. Here are your next reads.
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number">{fmt_number(num_books)}</span>
+                    <span class="stat-label">Books in the library</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{fmt_number(num_users)}</span>
+                    <span class="stat-label">Active readers</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">10</span>
+                    <span class="stat-label">Picks per reader</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-shelf-right">{right_shelves}</div>
+    </div>
+    <div class="hero-ribbon">
+        <p>
+            Powered by <strong>hybrid recommendations</strong>
+            &nbsp;·&nbsp; Similar readers &nbsp;·&nbsp; Your reading history &nbsp;·&nbsp; Book content matching
+        </p>
     </div>
 </div>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(hero_html, unsafe_allow_html=True)
 
 # ─── SEARCH AREA ──────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="search-shell">
-    <p class="search-title">Find your recommendations</p>
+    <p class="search-title">Find your personalised recommendations</p>
 </div>
 """, unsafe_allow_html=True)
 
 col_name, col_id, _ = st.columns([2, 2, 5])
-
 with col_name:
     name_input = st.text_input("Your name", placeholder="e.g. Sophie")
-
 with col_id:
     user_input = st.text_input("User ID", placeholder="e.g. 1042")
 
@@ -647,7 +1214,7 @@ with col_id:
 if not user_input:
     st.markdown("""
     <div class="info-banner">
-        Enter your user ID above to receive personalised book recommendations based on your reading history.
+        Enter your user ID above to discover books handpicked just for you, based on your borrowing history and the tastes of readers who share your literary profile.
     </div>
     """, unsafe_allow_html=True)
 
@@ -664,93 +1231,74 @@ else:
                 No recommendations found for user <strong>{selected_user}</strong>. Please check the ID.
             </div>
             """, unsafe_allow_html=True)
-
         else:
             rec_string = user_row.iloc[0]["recommendation"]
             recommended_item_ids = [int(x) for x in str(rec_string).split()]
 
             recommended_books = items[items["i"].isin(recommended_item_ids)].copy()
-
-            recommended_books["rank"] = recommended_books["i"].apply(
-                lambda x: recommended_item_ids.index(x) + 1
-            )
-
+            recommended_books["rank"] = recommended_books["i"].apply(lambda x: recommended_item_ids.index(x) + 1)
             recommended_books = recommended_books.sort_values("rank").head(10)
 
-            render_section_header(
-                f"Welcome {display_name}! Discover the books recommended just for you.",
-                "Personalised recommendations · based on your reading history"
-            )
+            st.markdown(f"""
+            <div class="rec-banner">
+                <div class="rec-banner-icon"></div>
+                <div class="rec-banner-text">
+                    <div class="rec-banner-kicker">Your personalised shelf</div>
+                    <div class="rec-banner-headline">Hello, {html.escape(display_name)} — we found your next reads.</div>
+                    <div class="rec-banner-body">
+                        These titles were chosen exclusively for you by combining three lenses:
+                        readers with similar tastes to yours, patterns in your own borrowing history,
+                        and deep content similarity across themes, genres, and writing styles.
+                    </div>
+                    <div class="rec-pills">
+                        <span class="rec-pill">Similar readers</span>
+                        <span class="rec-pill">Your history</span>
+                        <span class="rec-pill">Content matching</span>
+                        <span class="rec-pill">Hybrid model</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            render_book_grid(
-                recommended_books,
-                show_description=True,
-                ranked=True,
-                cols_per_row=5
+            render_section_header(
+                "Recommended for you",
+                "Personalised · Hybrid recommendations"
             )
+            render_book_grid(recommended_books, ranked=True, cols_per_row=5, section_key="recommended", start_index=0)
 
             user_interactions = interactions[interactions["u"] == selected_user]
-
             if not user_interactions.empty:
                 read_item_ids = user_interactions["i"].drop_duplicates().tolist()
                 read_books = items[items["i"].isin(read_item_ids)].copy()
-
                 if not read_books.empty:
                     render_section_header(
                         "Your reading history",
-                        f"{len(read_books)} books · all-time rentals"
+                        f"{len(read_books)} books · All-time borrowals"
                     )
-
-                    render_book_grid(
-                        read_books,
-                        show_description=False,
-                        ranked=True,
-                        cols_per_row=5
-                    )
+                    render_book_grid(read_books, ranked=True, cols_per_row=5, section_key="history", start_index=20)
 
     except ValueError:
         st.markdown("""
-        <div class="info-banner">
-            Please enter a valid numeric user ID.
-        </div>
+        <div class="info-banner">Please enter a valid numeric user ID.</div>
         """, unsafe_allow_html=True)
 
 # ─── MOST POPULAR ─────────────────────────────────────────────────────────────
-top_items = (
-    interactions["i"]
-    .value_counts()
-    .head(10)
-    .index
-    .tolist()
-)
-
+top_items = interactions["i"].value_counts().head(10).index.tolist()
 top_books = items[items["i"].isin(top_items)].copy()
-
-top_books["rank"] = top_books["i"].apply(
-    lambda x: top_items.index(x) + 1
-)
-
+top_books["rank"] = top_books["i"].apply(lambda x: top_items.index(x) + 1)
 top_books = top_books.sort_values("rank")
 
 render_section_header(
     "Most borrowed",
     "The 10 most popular titles across the entire library"
 )
-
-render_book_grid(
-    top_books,
-    show_description=False,
-    ranked=True,
-    cols_per_row=5
-)
+render_book_grid(top_books, ranked=True, cols_per_row=5, section_key="popular", start_index=40)
 
 # ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.markdown('<div class="bottom-divider"></div>', unsafe_allow_html=True)
-
 st.markdown("""
 <div class="footer-custom">
-    <p>
-        University Library · Recommendation Engine · Built with collaborative filtering &amp; hybrid models
-    </p>
+    <p>University Library · Recommendation Engine · Hybrid collaborative filtering &amp; content-based models</p>
+    <div class="footer-mark">✦</div>
 </div>
 """, unsafe_allow_html=True)
