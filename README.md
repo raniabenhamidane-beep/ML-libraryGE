@@ -6,9 +6,9 @@ This project is an iterative exploration into building a recommendation system t
 
 After extensive testing and grid searches, we identified a specific configuration that outperformed all other variations:
 
-* **The blend weights**: 10% user-to-user (U2U), 20% item-to-item (I2I), and **70% content-based similarity**.
+* **The blend weights**: 10% user-to-user (U2U), 15% item-to-item (I2I), and **75% content-based similarity**.
 * **KNN filter**: Setting **k=20** for the nearest-neighbor filters proved to be the most effective for stripping away noise without losing relevant recommendations.
-* **Dominance of content**: The high weight assigned to the content model (70%) suggests that for this library dataset, the semantic relationships between books are the strongest predictors of future interest.
+* **Dominance of content**: The high weight assigned to the content model (75%) suggests that for this library dataset, the semantic relationships between books are the strongest predictors of future interest.
 
 ---
 
