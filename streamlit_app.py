@@ -107,37 +107,57 @@ div[data-testid="column"] {
 
 .hero-shelf-left,
 .hero-shelf-right {
-    width: 220px;
+    width: 250px;
     flex-shrink: 0;
     padding: 2.5rem 0 0 0;
     display: flex;
     flex-direction: column;
     gap: 0;
+    box-sizing: border-box;
+}
+
+.hero-shelf-left {
+    align-items: flex-start;
 }
 
 .hero-shelf-right {
     align-items: flex-end;
 }
 
+.hero-shelf-unit {
+    width: var(--shelf-width);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.hero-shelf-right .hero-shelf-unit {
+    align-items: flex-end;
+}
+
 .shelf-row-books {
+    width: var(--shelf-width);
     display: flex;
     align-items: flex-end;
-    padding: 0 12px;
     gap: 3px;
     margin-bottom: 0;
+    box-sizing: border-box;
+    overflow: visible;
 }
 
 .shelf-row-books.right-side {
     justify-content: flex-end;
-    padding: 0 12px;
 }
 
 .shelf-plank {
+    width: var(--shelf-width);
     height: 14px;
     background: linear-gradient(180deg, #D9B579 0%, #C79A60 50%, #A97847 100%);
     box-shadow: 0 8px 18px rgba(140, 110, 80, 0.18), inset 0 2px 0 rgba(255,255,255,0.30);
     border-radius: 3px;
-    margin: 0 8px 20px 8px;
+    margin: 0;
+    box-sizing: border-box;
 }
 
 .spine {
@@ -278,7 +298,7 @@ div[data-testid="column"] {
 .hero-ribbon strong { color: #fff; }
 
 /* ══════════════════════════════════════════
-   LANDING CHOICE - FIXED VERSION
+   LANDING CHOICE
 ══════════════════════════════════════════ */
 
 .path-wrapper-fixed {
@@ -1116,7 +1136,6 @@ def build_content_similarity_matrix(_items_df):
 
     tfidf = TfidfVectorizer(max_features=5000)
     tfidf_matrix = tfidf.fit_transform(text_data)
-
     tfidf_norm = normalize(tfidf_matrix, norm="l2", axis=1)
 
     return tfidf_norm, items_sorted["i"].tolist()
@@ -1521,27 +1540,43 @@ SPINE_COLORS = [
 
 
 def make_spine(color, width, height):
-    return f'<div class="spine" style="width:{width}px;height:{height}px;background:{color};"></div>'
+    return (
+        f'<div class="spine" '
+        f'style="width:{width}px;height:{height}px;background:{color};"></div>'
+    )
 
 
 def make_shelf_row(count, side="left"):
     spines_html = ""
+    spine_widths = []
 
     for _ in range(count):
         color = random.choice(SPINE_COLORS)
-        width = random.randint(14, 26)
+        width = random.randint(13, 22)
         height = random.randint(90, 160)
+
+        spine_widths.append(width)
         spines_html += make_spine(color, width, height)
+
+    gaps_width = (count - 1) * 3
+    shelf_width = sum(spine_widths) + gaps_width + 18
 
     side_class = "right-side" if side == "right" else ""
 
-    return f'<div class="shelf-row-books {side_class}">{spines_html}</div><div class="shelf-plank"></div>'
+    return (
+        f'<div class="hero-shelf-unit" style="--shelf-width:{shelf_width}px;">'
+        f'<div class="shelf-row-books {side_class}">'
+        f'{spines_html}'
+        f'</div>'
+        f'<div class="shelf-plank"></div>'
+        f'</div>'
+    )
 
 
 random.seed(42)
 
-left_shelves = "".join(make_shelf_row(9, "left") for _ in range(3))
-right_shelves = "".join(make_shelf_row(9, "right") for _ in range(3))
+left_shelves = "".join(make_shelf_row(8, "left") for _ in range(3))
+right_shelves = "".join(make_shelf_row(8, "right") for _ in range(3))
 
 
 def fmt_number(n):
@@ -1567,52 +1602,51 @@ if "new_user_name" not in st.session_state:
 
 # ─── HERO ────────────────────────────────────────────────────────────────────
 
-hero_html = f"""
-<div class="hero-outer">
-    <div class="hero-shelf-row">
-        <div class="hero-shelf-left">{left_shelves}</div>
-        <div class="hero-center">
-            <div class="hero-eyebrow">
-                <span>✦</span> University Library <span>·</span> Book Recommender
-            </div>
-            <h1 class="hero-title">
-                Your next<br><em>great read</em><br>awaits.
-            </h1>
-            <p class="hero-subtitle">
-                Whether you already have a reading history or you are just starting,
-                we help you discover books that match your taste.
-            </p>
-            <div class="hero-stats">
-                <div class="stat-item">
-                    <span class="stat-number">{fmt_number(num_books)}</span>
-                    <span class="stat-label">Books in the library</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">{fmt_number(num_users)}</span>
-                    <span class="stat-label">Active readers</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">10</span>
-                    <span class="stat-label">Picks per reader</span>
-                </div>
-            </div>
-        </div>
-        <div class="hero-shelf-right">{right_shelves}</div>
-    </div>
-    <div class="hero-ribbon">
-        <p>
-            Powered by <strong>hybrid recommendations</strong>
-            &nbsp;·&nbsp; Similar readers &nbsp;·&nbsp; Reading history &nbsp;·&nbsp; Book content matching
-        </p>
-    </div>
-</div>
-"""
+hero_html = (
+    '<div class="hero-outer">'
+        '<div class="hero-shelf-row">'
+            f'<div class="hero-shelf-left">{left_shelves}</div>'
+            '<div class="hero-center">'
+                '<div class="hero-eyebrow">'
+                    'University Library <span>✦</span> Book Recommender'
+                '</div>'
+                '<h1 class="hero-title">'
+                    'Your next<br><em>great read</em><br>awaits.'
+                '</h1>'
+                '<p class="hero-subtitle">'
+                    'For bookworms, casual readers, and curious minds '
+                    'discover stories that feel like they were waiting for you.'
+                '</p>'
+                '<div class="hero-stats">'
+                    '<div class="stat-item">'
+                        f'<span class="stat-number">{fmt_number(num_books)}</span>'
+                        '<span class="stat-label">Books in the library</span>'
+                    '</div>'
+                    '<div class="stat-item">'
+                        f'<span class="stat-number">{fmt_number(num_users)}</span>'
+                        '<span class="stat-label">Active readers</span>'
+                    '</div>'
+                    '<div class="stat-item">'
+                        '<span class="stat-number">10</span>'
+                        '<span class="stat-label">Picks per reader</span>'
+                    '</div>'
+                '</div>'
+            '</div>'
+            f'<div class="hero-shelf-right">{right_shelves}</div>'
+        '</div>'
+        '<div class="hero-ribbon">'
+            '<p>'
+                'Powered by <strong>hybrid recommendations</strong>'
+                '&nbsp;·&nbsp; Similar readers &nbsp;·&nbsp; Reading history &nbsp;·&nbsp; Book content matching'
+            '</p>'
+        '</div>'
+    '</div>'
+)
 
 st.markdown(hero_html, unsafe_allow_html=True)
 
 
 # ─── LANDING PAGE ────────────────────────────────────────────────────────────
-
 
 if st.session_state.user_mode is None:
     st.markdown("""
@@ -1627,8 +1661,6 @@ if st.session_state.user_mode is None:
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="path-options-fixed">', unsafe_allow_html=True)
-
-    st.markdown('<div class="choice-options">', unsafe_allow_html=True)
 
     choice_col1, choice_col2 = st.columns(2, gap="large")
 
@@ -1743,7 +1775,7 @@ elif st.session_state.user_mode == "existing":
                     <div class="rec-banner-icon">📖</div>
                     <div class="rec-banner-text">
                         <div class="rec-banner-kicker">Your personalised shelf</div>
-                        <div class="rec-banner-headline">Hello, {html.escape(display_name)} — we found your next reads.</div>
+                        <div class="rec-banner-headline">Hello, {html.escape(display_name)} ! we found your next reads.</div>
                         <div class="rec-banner-body">
                             These titles were selected by combining your reading history,
                             readers with similar tastes, and book-level content patterns.
@@ -1968,7 +2000,7 @@ elif st.session_state.user_mode == "new":
                 <div class="rec-banner-icon">✨</div>
                 <div class="rec-banner-text">
                     <div class="rec-banner-kicker">Your personalised shelf</div>
-                    <div class="rec-banner-headline">Hello, {html.escape(display_name)} — here are your first recommendations.</div>
+                    <div class="rec-banner-headline">Hello, {html.escape(display_name)} ! here are your first recommendations.</div>
                     <div class="rec-banner-body">
                         These titles were selected from the books you added. We matched them using
                         shared themes, authors, subjects, and text-based content similarity.
@@ -2015,7 +2047,7 @@ st.markdown('<div class="bottom-divider"></div>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="footer-custom">
-    <p>University Library · Recommendation Engine · Hybrid collaborative filtering &amp; content-based models</p>
-    <div class="footer-mark">✦</div>
+    <p>University Library · Geneva · Mia Chambat &amp; Rania Ben Hamidane</p>
+    <div class="footer-mark"></div>
 </div>
 """, unsafe_allow_html=True)
