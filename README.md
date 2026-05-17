@@ -2,6 +2,12 @@
 
 This project is an iterative exploration into building a recommendation system that balances historical borrowing habits with the semantic meaning of book metadata. Rather than relying on a single algorithm, we developed a **3-way hybrid model** that blends collaborative and content-based filtering.
 
+## Deliverables
+
+**Video link**: https://youtu.be/zs9qtUctSA8?si=aB6sI7gUVBU_WzW3 
+**Ranking**: 4th place
+**Final Score**: 0.174
+
 ## The winning formula: weights and tuning
 
 After extensive testing and grid searches, we identified a specific configuration that outperformed all other variations:
