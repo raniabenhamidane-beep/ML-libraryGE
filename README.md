@@ -4,11 +4,12 @@ This project is an iterative exploration into building a recommendation system t
 
 ## Deliverables
 
-* **Video link**: https://youtu.be/zs9qtUctSA8?si=aB6sI7gUVBU_WzW3 
+* **Video link**: https://youtu.be/zs9qtUctSA8?si=aB6sI7gUVBU_WzW3
+* **User Interface link**: https://geneva-bookrecommender-miacandraniabh.streamlit.app
 * **Ranking**: 4th place
 * **Final Score**: 0.174
 * **Jupyter Notebook**: Final notebook with comments.
-* **User Interface link**: https://geneva-bookrecommender-miacandraniabh.streamlit.app
+
 
 See in our repository the best submissions and the screenshot of our ranking and final score (in the folder Deliverables). 
 
