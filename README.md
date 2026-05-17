@@ -4,9 +4,9 @@ This project is an iterative exploration into building a recommendation system t
 
 ## Deliverables
 
-**Video link**: https://youtu.be/zs9qtUctSA8?si=aB6sI7gUVBU_WzW3 
-**Ranking**: 4th place
-**Final Score**: 0.174
+* **Video link**: https://youtu.be/zs9qtUctSA8?si=aB6sI7gUVBU_WzW3 
+* **Ranking**: 4th place
+* **Final Score**: 0.174
 
 ## The winning formula: weights and tuning
 
