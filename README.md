@@ -10,7 +10,7 @@ After extensive testing and grid searches, we identified a specific configuratio
 * **KNN filter**: Setting **k=20** for the nearest-neighbor filters proved to be the most effective for stripping away noise without losing relevant recommendations.
 * **Dominance of content**: The high weight assigned to the content model (75%) suggests that for this library dataset, the semantic relationships between books are the strongest predictors of future interest.
 
----
+--- 
 
 ## The foundation: temporal decay and data handling
 
