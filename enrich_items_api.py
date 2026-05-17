@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import time
 import re
-
+ 
 # Load your existing items metadata file
 items = pd.read_csv("data/itemsclean_with_metadata.csv")
 
